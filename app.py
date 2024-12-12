@@ -22,7 +22,7 @@ if not openai_api_key:
 openai.api_key = openai_api_key
 
 # Add company logo
-st.image("pelindo_logo.jfif", use_column_width=True)
+st.image("pelindo_logo.jfif", use_container_width=True)
 
 st.title("Pelindo-TKMP AI Sensitivity Analysis")
 
@@ -139,8 +139,8 @@ if uploaded_file is not None:
                 st.write(f"- **{feature}:** Sensitivitas {sensitivity:.4f}. Interpretasi: Hubungan fitur ini dengan target dapat menunjukkan dampak langsung atau tidak langsung pada variabel target.")
 
             # GPT-4 Analysis
-            st.subheader("Analisis GPT-4")
-            if st.button("Analisis dengan GPT-4"):
+            st.subheader("Analisis Pelindo AI")
+            if st.button("Pelindo AI"):
                 prompt = (
                     f"Dataset ini memiliki kolom: {list(data.columns)}. Kolom target adalah '{target}', dan kolom fitur adalah {features}. "
                     f"Model {model_type} memiliki MSE: {mse:.4f}, MAE: {mae:.4f}, RMSE: {rmse:.4f}, dan R²: {r2:.4f}. "
