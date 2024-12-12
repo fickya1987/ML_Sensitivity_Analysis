@@ -30,21 +30,25 @@ uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
 
-    # Handle non-numeric data and convert numeric strings to floats
-    for col in data.columns:
-        if data[col].dtype == 'object':
-            try:
-                data[col] = data[col].str.replace(',', '').astype(float)
-            except ValueError:
-                pass
-
     # Display the data
     st.subheader("Dataset")
     st.write(data.head())
 
+    # Handle non-numeric data and convert numeric strings to floats
+    for col in data.columns:
+        if data[col].dtype == 'object':
+            try:
+                data[col] = data[col].str.replace(',', '').str.replace(' ', '').astype(float)
+            except ValueError:
+                pass  # Leave non-convertible columns as is
+
+    # Identify categorical and numerical columns
+    categorical_cols = data.select_dtypes(include=["object", "category"]).columns
+    numerical_cols = data.select_dtypes(include=["int64", "float64"]).columns
+
     # Select target and features
     st.subheader("Select Target and Features")
-    target = st.selectbox("Select the target column", data.columns)
+    target = st.selectbox("Select the target column", numerical_cols)
     features = st.multiselect("Select feature columns", [col for col in data.columns if col != target])
 
     # Select model type
@@ -56,19 +60,16 @@ if uploaded_file is not None:
         y = data[target]
 
         # Handle missing values
-        X = X.fillna(X.median())
-        y = y.fillna(y.median())
-
-        # Identify categorical and numerical columns
-        categorical_cols = X.select_dtypes(include=["object", "category"]).columns
-        numerical_cols = X.select_dtypes(include=["int64", "float64"]).columns
+        X = X.fillna(0)  # Replace NaN with 0
+        y = y.fillna(0)
 
         # Preprocessing pipeline
         preprocessor = ColumnTransformer(
             transformers=[
                 ("num", StandardScaler(), numerical_cols),
                 ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols)
-            ]
+            ],
+            remainder='passthrough'
         )
 
         # Model pipeline
@@ -134,5 +135,3 @@ if uploaded_file is not None:
         st.warning("Please select a target and features for analysis.")
 else:
     st.info("Please upload a CSV file to begin.")
-
-
