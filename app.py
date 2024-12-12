@@ -22,7 +22,7 @@ if not openai_api_key:
 openai.api_key = openai_api_key
 
 # Add company logo
-st.image("pelindo_logo.jfif", use_column_width=True)
+st.image("pelindo_logo.jfif", use_container_width=True)
 
 st.title("Pelindo-TKMP AI Sensitivity Analysis Tools")
 
