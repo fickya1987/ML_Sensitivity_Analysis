@@ -22,9 +22,9 @@ if not openai_api_key:
 openai.api_key = openai_api_key
 
 # Add company logo
-st.image("pelindo_logo.jfif", use_container_width=True)
+st.image("pelindo_logo.jfif", use_column_width=True)
 
-st.title("Pelindo-TKMP AI Sensitivity Analysis App")
+st.title("Pelindo-TKMP AI Sensitivity Analysis")
 
 # File uploader
 st.subheader("Unggah Dataset")
@@ -139,13 +139,14 @@ if uploaded_file is not None:
                 st.write(f"- **{feature}:** Sensitivitas {sensitivity:.4f}. Interpretasi: Hubungan fitur ini dengan target dapat menunjukkan dampak langsung atau tidak langsung pada variabel target.")
 
             # GPT-4 Analysis
-            st.subheader("Analisis Pelindo AI")
-            if st.button("Analisis dengan Pelindo AI"):
+            st.subheader("Analisis GPT-4")
+            if st.button("Analisis dengan GPT-4"):
                 prompt = (
                     f"Dataset ini memiliki kolom: {list(data.columns)}. Kolom target adalah '{target}', dan kolom fitur adalah {features}. "
                     f"Model {model_type} memiliki MSE: {mse:.4f}, MAE: {mae:.4f}, RMSE: {rmse:.4f}, dan R²: {r2:.4f}. "
                     f"Sensitivitas fitur adalah sebagai berikut: {sensitivities.to_dict()}. "
-                    "Berikan wawasan tentang hubungan fitur dengan target, dan saran untuk peningkatan analisis."
+                    "Berikan wawasan tentang hubungan fitur dengan target, sertakan juga bagaimana perubahan pada setiap fitur (misalnya, kenaikan 10%) akan memengaruhi target dalam konteks sensitivitasnya. "
+                    "Berikan rekomendasi bisnis berdasarkan analisis ini."
                 )
 
                 # GPT-4 API call
@@ -167,5 +168,6 @@ if uploaded_file is not None:
         st.warning("Mohon pilih target dan fitur untuk analisis.")
 else:
     st.info("Unggah file CSV untuk memulai.")
+
 
 
