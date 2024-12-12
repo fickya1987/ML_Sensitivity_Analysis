@@ -6,6 +6,12 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import openai
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 st.title("Sensitivity Analysis using Machine Learning and GPT-4")
 
@@ -78,14 +84,13 @@ if uploaded_file is not None:
 
             # GPT-4 API call
             try:
-                openai.api_key = st.secrets["openai_api_key"]
                 response = openai.ChatCompletion.create(
-                    model="gpt-4o",
+                    model="gpt-4",
                     messages=[
                         {"role": "system", "content": "You are a data analysis expert."},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=2048
+                    max_tokens=300
                 )
                 st.write(response.choices[0].message["content"].strip())
             except Exception as e:
@@ -94,3 +99,4 @@ if uploaded_file is not None:
         st.warning("Please select a target and features for analysis.")
 else:
     st.info("Please upload a CSV file to begin.")
+
