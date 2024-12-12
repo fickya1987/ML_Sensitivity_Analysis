@@ -43,95 +43,106 @@ if uploaded_file is not None:
                 pass  # Leave non-convertible columns as is
 
     # Identify categorical and numerical columns
-    categorical_cols = data.select_dtypes(include=["object", "category"]).columns
-    numerical_cols = data.select_dtypes(include=["int64", "float64"]).columns
+    categorical_cols = data.select_dtypes(include=["object", "category"]).columns.tolist()
+    numerical_cols = data.select_dtypes(include=["int64", "float64"]).columns.tolist()
+
+    st.write("Categorical Columns:", categorical_cols)
+    st.write("Numerical Columns:", numerical_cols)
 
     # Select target and features
     st.subheader("Select Target and Features")
-    target = st.selectbox("Select the target column", numerical_cols)
-    features = st.multiselect("Select feature columns", [col for col in data.columns if col != target])
+    if numerical_cols:
+        target = st.selectbox("Select the target column", numerical_cols)
+        features = st.multiselect("Select feature columns", [col for col in data.columns if col != target])
+    else:
+        st.error("No numerical columns available for target selection. Please check your dataset.")
+        target, features = None, None
 
     # Select model type
     st.subheader("Select Model Type")
     model_type = st.selectbox("Choose a model", ["Linear Regression", "Ridge Regression", "Lasso Regression", "Random Forest"])
 
     if target and features:
-        X = data[features]
-        y = data[target]
+        try:
+            X = data[features]
+            y = data[target]
 
-        # Handle missing values
-        X = X.fillna(0)  # Replace NaN with 0
-        y = y.fillna(0)
+            # Handle missing values
+            X = X.fillna(0)  # Replace NaN with 0
+            y = y.fillna(0)
 
-        # Preprocessing pipeline
-        preprocessor = ColumnTransformer(
-            transformers=[
-                ("num", StandardScaler(), numerical_cols),
-                ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols)
-            ],
-            remainder='passthrough'
-        )
-
-        # Model pipeline
-        if model_type == "Linear Regression":
-            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", LinearRegression())])
-        elif model_type == "Ridge Regression":
-            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", Ridge())])
-        elif model_type == "Lasso Regression":
-            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", Lasso())])
-        elif model_type == "Random Forest":
-            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", RandomForestRegressor())])
-
-        # Split the data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-        # Train the model
-        model.fit(X_train, y_train)
-
-        # Predictions
-        y_pred = model.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-
-        st.subheader("Model Performance")
-        st.write(f"Mean Squared Error: {mse}")
-
-        # Sensitivity Analysis
-        st.subheader("Sensitivity Analysis")
-        if model_type in ["Linear Regression", "Ridge Regression", "Lasso Regression"]:
-            regressor = model.named_steps["regressor"]
-            sensitivities = pd.Series(regressor.coef_, index=numerical_cols.tolist() + list(model.named_steps["preprocessor"].transformers_[1][1].get_feature_names_out()))
-        elif model_type == "Random Forest":
-            regressor = model.named_steps["regressor"]
-            sensitivities = pd.Series(regressor.feature_importances_, index=numerical_cols.tolist() + list(model.named_steps["preprocessor"].transformers_[1][1].get_feature_names_out()))
-
-        sensitivities = sensitivities.abs().sort_values(ascending=False)
-
-        st.write("Feature Sensitivities:")
-        st.bar_chart(sensitivities)
-
-        # GPT-4 Analysis
-        st.subheader("GPT-4 Analysis")
-        if st.button("Analyze with GPT-4"):
-            prompt = (
-                f"The dataset contains the following columns: {list(data.columns)}. The target column is '{target}', and the feature columns are {features}. "
-                f"The {model_type} model achieved a Mean Squared Error of {mse}. The sensitivities of the features are as follows: {sensitivities.to_dict()}. "
-                "Provide insights about the relationships between features and the target, and suggest potential improvements or considerations for this analysis."
+            # Preprocessing pipeline
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ("num", StandardScaler(), [col for col in features if col in numerical_cols]),
+                    ("cat", OneHotEncoder(handle_unknown="ignore"), [col for col in features if col in categorical_cols])
+                ],
+                remainder='passthrough'
             )
 
-            # GPT-4 API call
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": "You are a data analysis expert."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=2048
+            # Model pipeline
+            if model_type == "Linear Regression":
+                model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", LinearRegression())])
+            elif model_type == "Ridge Regression":
+                model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", Ridge())])
+            elif model_type == "Lasso Regression":
+                model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", Lasso())])
+            elif model_type == "Random Forest":
+                model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", RandomForestRegressor())])
+
+            # Split the data
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            # Train the model
+            model.fit(X_train, y_train)
+
+            # Predictions
+            y_pred = model.predict(X_test)
+            mse = mean_squared_error(y_test, y_pred)
+
+            st.subheader("Model Performance")
+            st.write(f"Mean Squared Error: {mse}")
+
+            # Sensitivity Analysis
+            st.subheader("Sensitivity Analysis")
+            if model_type in ["Linear Regression", "Ridge Regression", "Lasso Regression"]:
+                regressor = model.named_steps["regressor"]
+                sensitivities = pd.Series(regressor.coef_, index=features)
+            elif model_type == "Random Forest":
+                regressor = model.named_steps["regressor"]
+                sensitivities = pd.Series(regressor.feature_importances_, index=features)
+
+            sensitivities = sensitivities.abs().sort_values(ascending=False)
+
+            st.write("Feature Sensitivities:")
+            st.bar_chart(sensitivities)
+
+            # GPT-4 Analysis
+            st.subheader("GPT-4 Analysis")
+            if st.button("Analyze with GPT-4"):
+                prompt = (
+                    f"The dataset contains the following columns: {list(data.columns)}. The target column is '{target}', and the feature columns are {features}. "
+                    f"The {model_type} model achieved a Mean Squared Error of {mse}. The sensitivities of the features are as follows: {sensitivities.to_dict()}. "
+                    "Provide insights about the relationships between features and the target, and suggest potential improvements or considerations for this analysis."
                 )
-                st.write(response.choices[0].message["content"].strip())
-            except Exception as e:
-                st.error(f"Error communicating with GPT-4: {e}")
+
+                # GPT-4 API call
+                try:
+                    response = openai.ChatCompletion.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": "You are a data analysis expert."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=300
+                    )
+                    st.write(response.choices[0].message["content"].strip())
+                except Exception as e:
+                    st.error(f"Error communicating with GPT-4: {e}")
+        except Exception as e:
+            st.error(f"Error during model training or analysis: {e}")
     else:
         st.warning("Please select a target and features for analysis.")
 else:
     st.info("Please upload a CSV file to begin.")
+
