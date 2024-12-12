@@ -5,13 +5,21 @@ from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 import openai
 from dotenv import load_dotenv
 import os
 
 # Load environment variables
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai_api_key = os.getenv("OPENAI_API_KEY")
+
+if not openai_api_key:
+    raise ValueError("OPENAI_API_KEY is not set in the .env file")
+
+openai.api_key = openai_api_key
 
 st.title("Sensitivity Analysis using Machine Learning and GPT-4")
 
@@ -39,19 +47,36 @@ if uploaded_file is not None:
         X = data[features]
         y = data[target]
 
+        # Handle missing values
+        X = X.fillna(X.median())
+        y = y.fillna(y.median())
+
+        # Identify categorical and numerical columns
+        categorical_cols = X.select_dtypes(include=["object", "category"]).columns
+        numerical_cols = X.select_dtypes(include=["int64", "float64"]).columns
+
+        # Preprocessing pipeline
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ("num", StandardScaler(), numerical_cols),
+                ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_cols)
+            ]
+        )
+
+        # Model pipeline
+        if model_type == "Linear Regression":
+            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", LinearRegression())])
+        elif model_type == "Ridge Regression":
+            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", Ridge())])
+        elif model_type == "Lasso Regression":
+            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", Lasso())])
+        elif model_type == "Random Forest":
+            model = Pipeline(steps=[("preprocessor", preprocessor), ("regressor", RandomForestRegressor())])
+
         # Split the data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        # Train the selected model
-        if model_type == "Linear Regression":
-            model = LinearRegression()
-        elif model_type == "Ridge Regression":
-            model = Ridge()
-        elif model_type == "Lasso Regression":
-            model = Lasso()
-        elif model_type == "Random Forest":
-            model = RandomForestRegressor()
-
+        # Train the model
         model.fit(X_train, y_train)
 
         # Predictions
@@ -64,9 +89,11 @@ if uploaded_file is not None:
         # Sensitivity Analysis
         st.subheader("Sensitivity Analysis")
         if model_type in ["Linear Regression", "Ridge Regression", "Lasso Regression"]:
-            sensitivities = pd.Series(model.coef_, index=features)
+            regressor = model.named_steps["regressor"]
+            sensitivities = pd.Series(regressor.coef_, index=numerical_cols.tolist() + list(model.named_steps["preprocessor"].transformers_[1][1].get_feature_names_out()))
         elif model_type == "Random Forest":
-            sensitivities = pd.Series(model.feature_importances_, index=features)
+            regressor = model.named_steps["regressor"]
+            sensitivities = pd.Series(regressor.feature_importances_, index=numerical_cols.tolist() + list(model.named_steps["preprocessor"].transformers_[1][1].get_feature_names_out()))
 
         sensitivities = sensitivities.abs().sort_values(ascending=False)
 
