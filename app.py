@@ -53,7 +53,7 @@ if uploaded_file is not None:
     st.subheader("Select Target and Features")
     if numerical_cols:
         target = st.selectbox("Select the target column", numerical_cols)
-        features = st.multiselect("Select feature columns", [col for col in data.columns if col != target])
+        features = st.multiselect("Select feature columns", [col for col in numerical_cols if col != target])
     else:
         st.error("No numerical columns available for target selection. Please check your dataset.")
         target, features = None, None
@@ -74,8 +74,7 @@ if uploaded_file is not None:
             # Preprocessing pipeline
             preprocessor = ColumnTransformer(
                 transformers=[
-                    ("num", StandardScaler(), [col for col in features if col in numerical_cols]),
-                    ("cat", OneHotEncoder(handle_unknown="ignore"), [col for col in features if col in categorical_cols])
+                    ("num", StandardScaler(), features)
                 ],
                 remainder='passthrough'
             )
@@ -134,7 +133,7 @@ if uploaded_file is not None:
                             {"role": "system", "content": "You are a data analysis expert."},
                             {"role": "user", "content": prompt}
                         ],
-                        max_tokens=300
+                        max_tokens=2048
                     )
                     st.write(response.choices[0].message["content"].strip())
                 except Exception as e:
@@ -145,4 +144,5 @@ if uploaded_file is not None:
         st.warning("Please select a target and features for analysis.")
 else:
     st.info("Please upload a CSV file to begin.")
+
 
