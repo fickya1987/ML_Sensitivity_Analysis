@@ -30,6 +30,14 @@ uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
 
+    # Handle non-numeric data and convert numeric strings to floats
+    for col in data.columns:
+        if data[col].dtype == 'object':
+            try:
+                data[col] = data[col].str.replace(',', '').astype(float)
+            except ValueError:
+                pass
+
     # Display the data
     st.subheader("Dataset")
     st.write(data.head())
@@ -126,4 +134,5 @@ if uploaded_file is not None:
         st.warning("Please select a target and features for analysis.")
 else:
     st.info("Please upload a CSV file to begin.")
+
 
