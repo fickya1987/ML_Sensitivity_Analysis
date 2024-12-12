@@ -85,12 +85,12 @@ if uploaded_file is not None:
             # GPT-4 API call
             try:
                 response = openai.ChatCompletion.create(
-                    model="gpt-4",
+                    model="gpt-4o",
                     messages=[
                         {"role": "system", "content": "You are a data analysis expert."},
                         {"role": "user", "content": prompt}
                     ],
-                    max_tokens=300
+                    max_tokens=2048
                 )
                 st.write(response.choices[0].message["content"].strip())
             except Exception as e:
