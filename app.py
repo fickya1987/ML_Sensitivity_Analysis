@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -22,13 +22,13 @@ if not openai_api_key:
 openai.api_key = openai_api_key
 
 # Add company logo
-st.image("pelindo_logo.jfif", use_container_width=True)
+st.image("pelindo_logo.jfif", use_column_width=True)
 
-st.title("Pelindo-TKMP AI Sensitivity Analysis Tools")
+st.title("Pelindo-TKMP AI Sensitivity Analysis App")
 
 # File uploader
-st.subheader("Upload Dataset")
-uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
+st.subheader("Unggah Dataset")
+uploaded_file = st.file_uploader("Unggah file CSV", type=["csv"])
 
 if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
@@ -49,21 +49,21 @@ if uploaded_file is not None:
     categorical_cols = data.select_dtypes(include=["object", "category"]).columns.tolist()
     numerical_cols = data.select_dtypes(include=["int64", "float64"]).columns.tolist()
 
-    st.write("Categorical Columns:", categorical_cols)
-    st.write("Numerical Columns:", numerical_cols)
+    st.write("Kolom Kategorikal:", categorical_cols)
+    st.write("Kolom Numerik:", numerical_cols)
 
     # Select target and features
-    st.subheader("Select Target and Features")
+    st.subheader("Pilih Target dan Fitur")
     if numerical_cols:
-        target = st.selectbox("Select the target column", numerical_cols)
-        features = st.multiselect("Select feature columns", [col for col in numerical_cols if col != target])
+        target = st.selectbox("Pilih kolom target", numerical_cols)
+        features = st.multiselect("Pilih kolom fitur", [col for col in numerical_cols if col != target])
     else:
-        st.error("No numerical columns available for target selection. Please check your dataset.")
+        st.error("Tidak ada kolom numerik yang tersedia untuk dijadikan target. Mohon periksa dataset Anda.")
         target, features = None, None
 
     # Select model type
-    st.subheader("Select Model Type")
-    model_type = st.selectbox("Choose a model", ["Linear Regression", "Ridge Regression", "Lasso Regression", "Random Forest"])
+    st.subheader("Pilih Jenis Model")
+    model_type = st.selectbox("Pilih model", ["Linear Regression", "Ridge Regression", "Lasso Regression", "Random Forest"])
 
     if target and features:
         try:
@@ -100,13 +100,27 @@ if uploaded_file is not None:
 
             # Predictions
             y_pred = model.predict(X_test)
-            mse = mean_squared_error(y_test, y_pred)
 
-            st.subheader("Model Performance")
-            st.write(f"Mean Squared Error: {mse}")
+            # Performance metrics
+            mse = mean_squared_error(y_test, y_pred)
+            mae = mean_absolute_error(y_test, y_pred)
+            rmse = np.sqrt(mse)
+            r2 = r2_score(y_test, y_pred)
+
+            st.subheader("Kinerja Model")
+            st.write(f"Mean Squared Error (MSE): {mse:.4f}")
+            st.write(f"Mean Absolute Error (MAE): {mae:.4f}")
+            st.write(f"Root Mean Squared Error (RMSE): {rmse:.4f}")
+            st.write(f"R-squared (R²): {r2:.4f}")
+
+            st.write("Penjelasan:")
+            st.write("- **MSE** mengukur rata-rata kesalahan kuadrat antara prediksi dan nilai aktual. Semakin kecil nilainya, semakin baik.")
+            st.write("- **MAE** menunjukkan rata-rata kesalahan absolut, memberikan gambaran tentang rata-rata penyimpangan prediksi.")
+            st.write("- **RMSE** memberikan kesalahan dalam skala yang sama dengan target, sangat berguna untuk interpretasi langsung.")
+            st.write("- **R²** menunjukkan seberapa baik model menjelaskan variasi dalam data. Nilai mendekati 1 menunjukkan model yang baik.")
 
             # Sensitivity Analysis
-            st.subheader("Sensitivity Analysis")
+            st.subheader("Analisis Sensitivitas")
             if model_type in ["Linear Regression", "Ridge Regression", "Lasso Regression"]:
                 regressor = model.named_steps["regressor"]
                 sensitivities = pd.Series(regressor.coef_, index=features)
@@ -116,16 +130,22 @@ if uploaded_file is not None:
 
             sensitivities = sensitivities.abs().sort_values(ascending=False)
 
-            st.write("Feature Sensitivities:")
+            st.write("Sensitivitas Fitur:")
             st.bar_chart(sensitivities)
 
+            # Example insights
+            st.write("Contoh Hasil Analisis:")
+            for feature, sensitivity in sensitivities.items():
+                st.write(f"- **{feature}:** Sensitivitas {sensitivity:.4f}. Interpretasi: Hubungan fitur ini dengan target dapat menunjukkan dampak langsung atau tidak langsung pada variabel target.")
+
             # GPT-4 Analysis
-            st.subheader("GPT-4 Analysis")
-            if st.button("Analyze with GPT-4"):
+            st.subheader("Analisis Pelindo AI")
+            if st.button("Analisis dengan Pelindo AI"):
                 prompt = (
-                    f"The dataset contains the following columns: {list(data.columns)}. The target column is '{target}', and the feature columns are {features}. "
-                    f"The {model_type} model achieved a Mean Squared Error of {mse}. The sensitivities of the features are as follows: {sensitivities.to_dict()}. "
-                    "Provide insights about the relationships between features and the target, and suggest potential improvements or considerations for this analysis."
+                    f"Dataset ini memiliki kolom: {list(data.columns)}. Kolom target adalah '{target}', dan kolom fitur adalah {features}. "
+                    f"Model {model_type} memiliki MSE: {mse:.4f}, MAE: {mae:.4f}, RMSE: {rmse:.4f}, dan R²: {r2:.4f}. "
+                    f"Sensitivitas fitur adalah sebagai berikut: {sensitivities.to_dict()}. "
+                    "Berikan wawasan tentang hubungan fitur dengan target, dan saran untuk peningkatan analisis."
                 )
 
                 # GPT-4 API call
@@ -133,19 +153,19 @@ if uploaded_file is not None:
                     response = openai.ChatCompletion.create(
                         model="gpt-4o",
                         messages=[
-                            {"role": "system", "content": "You are a data analysis expert."},
+                            {"role": "system", "content": "Anda adalah ahli analisis data."},
                             {"role": "user", "content": prompt}
                         ],
                         max_tokens=2048
                     )
                     st.write(response.choices[0].message["content"].strip())
                 except Exception as e:
-                    st.error(f"Error communicating with GPT-4: {e}")
+                    st.error(f"Error berkomunikasi dengan GPT-4: {e}")
         except Exception as e:
-            st.error(f"Error during model training or analysis: {e}")
+            st.error(f"Error selama pelatihan atau analisis model: {e}")
     else:
-        st.warning("Please select a target and features for analysis.")
+        st.warning("Mohon pilih target dan fitur untuk analisis.")
 else:
-    st.info("Please upload a CSV file to begin.")
+    st.info("Unggah file CSV untuk memulai.")
 
 
