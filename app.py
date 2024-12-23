@@ -157,7 +157,8 @@ if uploaded_file is not None:
                             {"role": "system", "content": "Anda adalah ahli analisis data."},
                             {"role": "user", "content": prompt}
                         ],
-                        max_tokens=2048
+                        max_tokens=2048,
+                        temperature=1.0
                     )
                     st.write(response.choices[0].message["content"].strip())
                 except Exception as e:
